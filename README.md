@@ -1,3 +1,4 @@
+<<<<<<< README.md
 # Enterprise Rsbuild Preset
 
 Генератор проектов на базе Rsbuild. Создаёт новый проект **рядом** с папкой preset, без лишних зависимостей в самом preset.
