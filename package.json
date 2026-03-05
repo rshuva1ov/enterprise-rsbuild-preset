@@ -1,0 +1,9 @@
+{
+  "name": "enterprise-rsbuild-preset",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "enterprise": "node scripts/create-enterprise.cjs",
+    "kill": "node scripts/kill-enterprise.cjs"
+  }
+}
