@@ -8,25 +8,42 @@
 1. **Скопируй** папку `enterprise-rsbuild-preset` на уровне с местом где хочешь создать проект.
 
 2. **Запусти генерацию**:
+
    ```bash
    pnpm enterprise
+   # или: npm run enterprise
+   # или: yarn enterprise
    ```
-   или напрямую:
+
+   Или напрямую:
+
    ```bash
    node scripts/create-enterprise.cjs
    ```
 
-3. Скрипт спросит:
+   **Неинтерактивный режим** (все параметры через аргументы):
+
+   ```bash
+   node scripts/create-enterprise.cjs --name=my-app --pm=pnpm --preset=react-ts --fsd=y
+   ```
+
+   `--pm=` — `pnpm`, `yarn` или `npm`
+
+3. **Скрипт спросит**:
    - **Имя проекта** — папка создастся рядом с preset (например, `my-app`)
+   - **Пакетный менеджер** — pnpm (1), yarn (2) или npm (3)
    - **Пресет** — React + TypeScript
    - **FSD структура** — да/нет
 
-4. **Перейди в созданный проект** и настрой окружение:
+4. **Перейди в созданный проект** и настрой окружение (используй выбранный пакетный менеджер):
+
    ```bash
    cd ../my-app
    # добавь NPM_TOKEN в .npmrc
    pnpm install
+   # или: yarn install / npm install
    pnpm dev
+   # или: yarn dev / npm run dev
    ```
 
 ## Что генерируется
@@ -68,6 +85,7 @@ enterprise-rsbuild-preset/
 ├── package.json          # только скрипты enterprise и kill, без зависимостей
 ├── README.md
 └── scripts/
+    ├── constants.cjs     # константы и шаблоны для генерации
     ├── create-enterprise.cjs
     └── kill-enterprise.cjs
 ```
@@ -75,14 +93,18 @@ enterprise-rsbuild-preset/
 ## Удаление preset
 
 Когда preset больше не нужен:
+
 ```bash
 pnpm kill enterprise
+# или: npm run kill -- enterprise
+# или: yarn kill enterprise
 ```
+
 Скрипт запросит подтверждение и удалит папку preset.
 
 ## Результат
 
-После `pnpm enterprise` рядом появится папка с проектом:
+После `pnpm enterprise` (или `npm run enterprise` / `yarn enterprise`) рядом появится папка с проектом. Все скрипты в `package.json`, Husky-хуки и README созданного проекта будут использовать выбранный пакетный менеджер (pnpm, yarn или npm):
 
 ```
 parent/

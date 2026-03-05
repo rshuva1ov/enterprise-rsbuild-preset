@@ -19,7 +19,7 @@ function ask(question, defaultValue = "") {
 async function main() {
   const arg = process.argv[2];
   if (arg !== "enterprise") {
-    console.log("\nУдаление preset. Использование: pnpm kill enterprise\n");
+    console.log("\nУдаление preset. Использование: pnpm kill enterprise | npm run kill enterprise | yarn kill enterprise\n");
     process.exit(1);
   }
 
