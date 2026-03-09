@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "enterprise": "node scripts/create-enterprise.cjs",
-    "kill": "node scripts/kill-enterprise.cjs"
+    "kill": "node scripts/kill-enterprise.cjs",
+    "update-deps": "node scripts/update-deps.cjs"
   }
 }

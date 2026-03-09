@@ -1,4 +1,3 @@
-<<<<<<< README.md
 # Enterprise Rsbuild Preset
 
 Генератор проектов на базе Rsbuild. Создаёт новый проект **рядом** с папкой preset, без лишних зависимостей в самом preset.
@@ -78,16 +77,43 @@
 ### Безопасность
 - **npm audit** — проверка уязвимостей в зависимостях (High/Critical) на pre-push
 
+## Обновление версий зависимостей
+
+Скрипт `update-deps` подтягивает последние версии всех библиотек из npm registry и обновляет `scripts/deps.json`.
+
+```bash
+pnpm update-deps
+# или: npm run update-deps
+# или: yarn update-deps
+```
+
+### Переменные окружения
+
+| Переменная   | Назначение |
+|--------------|------------|
+| `NPM_TOKEN`  | Токен доступа к приватному реестру `@games-alabuga` (GitLab). Без него скрипт не сможет обновить `@games-alabuga/ui-kit` — остальные пакеты из публичного npm обновятся. |
+
+**Как задать:**
+
+1. Скопируй `.env.example` в `.env` в корне preset.
+2. Подставь свой токен (GitLab: User Settings → Access Tokens, scope: `read_api`, `read_registry`).
+3. Скрипт автоматически загружает `.env` при запуске.
+
+Либо задай в окружении перед запуском: `NPM_TOKEN=glpat-xxx pnpm update-deps`.
+
 ## Структура preset
 
 ```
 enterprise-rsbuild-preset/
-├── package.json          # только скрипты enterprise и kill, без зависимостей
+├── .env.example         # шаблон переменных (NPM_TOKEN для update-deps)
+├── package.json         # только скрипты enterprise и kill, без зависимостей
 ├── README.md
 └── scripts/
     ├── constants.cjs     # константы и шаблоны для генерации
     ├── create-enterprise.cjs
-    └── kill-enterprise.cjs
+    ├── deps.json        # версии зависимостей (обновляется через update-deps)
+    ├── kill-enterprise.cjs
+    └── update-deps.cjs  # скрипт обновления версий
 ```
 
 ## Удаление preset

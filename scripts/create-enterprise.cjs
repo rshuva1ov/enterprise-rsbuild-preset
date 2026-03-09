@@ -306,22 +306,6 @@ function updatePackageJson(withFsd, pm) {
     "*.{css,scss}": ["stylelint --fix", "prettier --write"],
     "*.{json,md}": ["prettier --write"],
   };
-  if (pkg.devDependencies && !pkg.devDependencies["@rsbuild/plugin-sass"]) {
-    pkg.devDependencies["@rsbuild/plugin-sass"] = "^1.1.0";
-  }
-  if (pkg.devDependencies && !pkg.devDependencies.stylelint) {
-    pkg.devDependencies.stylelint = "^16.20.0";
-    pkg.devDependencies["stylelint-config-standard-scss"] = "^15.0.1";
-  }
-  if (pkg.devDependencies) {
-    delete pkg.devDependencies["eslint-plugin-simple-import-sort"];
-    if (!pkg.devDependencies["@trivago/prettier-plugin-sort-imports"]) {
-      pkg.devDependencies["@trivago/prettier-plugin-sort-imports"] = "^6.0.2";
-    }
-    if (!pkg.devDependencies["eslint-plugin-security"]) {
-      pkg.devDependencies["eslint-plugin-security"] = "^4.0.0";
-    }
-  }
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2), "utf-8");
 }
 

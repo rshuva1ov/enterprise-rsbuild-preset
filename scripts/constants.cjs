@@ -1,5 +1,7 @@
 // Константы и шаблоны для enterprise-rsbuild-preset
 
+const DEPS = require("./deps.json");
+
 const PRESETS = [
   { id: "react-ts", name: "React + TypeScript", value: "react-ts" },
 ];
@@ -1462,42 +1464,8 @@ const PACKAGE_JSON_TEMPLATE = (name, pm) => {
         format: "prettier --write .",
         prepare: "husky",
       },
-      dependencies: {
-        "@games-alabuga/ui-kit": "^1.1.3",
-        "@tanstack/react-query": "^5.62.0",
-        classnames: "^2.5.1",
-        "keycloak-js": "^26.1.5",
-        react: "^18.3.1",
-        "react-dom": "^18.3.1",
-        "react-router-dom": "^7.0.2",
-        zustand: "^5.0.0-rc.2",
-      },
-      devDependencies: {
-        "@eslint/js": "^9.21.0",
-        "@feature-sliced/steiger-plugin": "^0.5.7",
-        "@rsbuild/core": "^1.1.0",
-        "@rsbuild/plugin-image-compress": "^1.1.0",
-        "@rsbuild/plugin-react": "^1.1.0",
-        "@rsbuild/plugin-sass": "^1.5.0",
-        "@types/react": "^19.0.10",
-        "@types/react-dom": "^19.0.4",
-        "compression-webpack-plugin": "^11.0.0",
-        eslint: "^9.21.0",
-        "eslint-plugin-react-hooks": "^5.1.0",
-        "eslint-plugin-react-refresh": "^0.4.19",
-        "eslint-plugin-security": "^4.0.0",
-        husky: "^9.1.7",
-        "lint-staged": "^15.5.0",
-        "@trivago/prettier-plugin-sort-imports": "^6.0.2",
-        prettier: "^3.5.3",
-        "sass-embedded": "^1.86.3",
-        sharp: "^0.34.5",
-        steiger: "^0.5.0",
-        stylelint: "^16.20.0",
-        "stylelint-config-standard-scss": "^15.0.1",
-        typescript: "~5.7.2",
-        "typescript-eslint": "^8.24.1",
-      },
+      dependencies: DEPS.dependencies,
+      devDependencies: DEPS.devDependencies,
     },
     null,
     2
