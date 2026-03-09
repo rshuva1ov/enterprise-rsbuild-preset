@@ -1,18 +1,32 @@
 #!/usr/bin/env node
 /**
  * Обновляет scripts/deps.json до последних версий пакетов из npm registry.
- * Поддерживает несколько приватных реестров (add-registry, .env).
- * Для приватных пакетов требуется NPM_TOKEN в .env.
+ * Поддерживает несколько приватных реестров (add-enterprise).
+ * Для приватных пакетов требуется NPM_TOKEN (добавляется через add-enterprise).
  */
 
 const fs = require("fs");
 const path = require("path");
 const https = require("https");
 
-const { PRIVATE_SCOPE, getRegistries } = require("../lib/env.cjs");
+const { getRegistries } = require("../lib/env.cjs");
 const { exitWithError } = require("../lib/cli.cjs");
 
 const DEPS_PATH = path.resolve(__dirname, "..", "deps.json");
+
+const HELP = `
+  Обновление версий в scripts/deps.json
+
+  Использование:
+    pnpm update-enterprise
+
+  Подтягивает последние версии из npm registry. Для приватных пакетов нужен NPM_TOKEN (добавляется через add-enterprise).
+`;
+
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
+  console.log(HELP);
+  process.exit(0);
+}
 
 function loadDeps() {
   if (!fs.existsSync(DEPS_PATH)) {
@@ -89,8 +103,7 @@ function getAllPackages(deps) {
   const privateDeps = deps.privateDependencies || {};
   const registries = getRegistries();
   const scopes = Object.keys(registries);
-  const scopeForShortNames =
-    PRIVATE_SCOPE || (scopes.length === 1 ? scopes[0] : null);
+  const scopeForShortNames = scopes.length === 1 ? scopes[0] : null;
 
   const expanded = [];
   for (const name of Object.keys(privateDeps)) {
@@ -164,7 +177,7 @@ async function main() {
       ),
     ];
     const hint = privateScopes.length
-      ? ` (проверь NPM_TOKEN и add-registry для ${privateScopes.join(", ")})`
+      ? ` (проверь NPM_TOKEN и add-enterprise для ${privateScopes.join(", ")})`
       : "";
     console.log(`\nНе обновлены${hint}: ${failed.join(", ")}`);
   }

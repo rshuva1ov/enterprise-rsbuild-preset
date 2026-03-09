@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * CLI для управления приватными npm-реестрами.
- * Использование: pnpm add-registry [add|remove|list] или pnpm add-registry для интерактивного режима
+ * Использование: add-enterprise | add-enterprise list | add-enterprise remove <scope>
  */
 
 const fs = require("fs");
@@ -11,6 +11,7 @@ const readline = require("readline");
 const { validateScope, validateUrl, exitWithError, c, log } = require("../lib/cli.cjs");
 
 const REGISTRIES_PATH = path.resolve(__dirname, "..", "registries.json");
+const DEPS_PATH = path.resolve(__dirname, "..", "deps.json");
 const PRESET_ROOT = path.resolve(__dirname, "..", "..");
 const ENV_PATH = path.join(PRESET_ROOT, ".env");
 
@@ -18,19 +19,11 @@ const HELP = `
   Управление приватными npm-реестрами
 
   Использование:
-    pnpm add-registry              — интерактивное добавление реестра и токена
-    pnpm add-registry add <scope> <url>   — добавить реестр
-    pnpm add-registry remove <scope>      — удалить реестр
-    pnpm add-registry list                — показать все реестры
+    add-enterprise              — интерактивное добавление (scope, URL, NPM_TOKEN)
+    add-enterprise list         — список реестров
+    add-enterprise remove <scope> — удалить реестр
 
-  Scope должен начинаться с @ (например @myorg).
-  Рейстр из .env (NPM_SCOPE + NPM_REGISTRY_URL) подмешивается автоматически.
-
-  Примеры:
-    pnpm add-registry
-    pnpm add-registry add @myorg https://npm.pkg.github.com/
-    pnpm add-registry remove @myorg
-    pnpm add-registry list
+  Рейстры хранятся в scripts/registries.json.
 `;
 
 function ask(question, defaultValue = "") {
@@ -85,6 +78,20 @@ function add(scope, url) {
   console.log(`Добавлен реестр: ${scopeResult.value} → ${urlResult.value}`);
 }
 
+function addPackageToDeps(packageName, version) {
+  if (!fs.existsSync(DEPS_PATH)) return;
+  let deps;
+  try {
+    deps = JSON.parse(fs.readFileSync(DEPS_PATH, "utf-8"));
+  } catch {
+    return;
+  }
+  if (typeof deps !== "object" || deps === null) return;
+  deps.privateDependencies = deps.privateDependencies || {};
+  deps.privateDependencies[packageName] = version;
+  fs.writeFileSync(DEPS_PATH, JSON.stringify(deps, null, 2) + "\n", "utf-8");
+}
+
 function upsertEnvToken(token) {
   if (!token) return;
   let content = "";
@@ -134,11 +141,22 @@ async function addInteractive() {
 
   add(scopeResult.value, urlResult.value);
 
+  const pkgName = await ask(
+    `  Пакет для добавления в зависимости (например ui-kit, Enter — пропустить)`,
+    ""
+  );
+  if (pkgName.trim()) {
+    const fullName = pkgName.startsWith("@") ? pkgName.trim() : `${scopeResult.value}/${pkgName.trim()}`;
+    const version = await ask(`  Версия для ${fullName}`, "^1.0.0");
+    addPackageToDeps(fullName, version.trim() || "^1.0.0");
+    log(`  Добавлен в deps.json: ${fullName}`, c.green);
+  }
+
   const token = await ask("  NPM_TOKEN (опционально, для .env — Enter чтобы пропустить)", "");
   if (token) {
     upsertEnvToken(token);
   } else {
-    log(`  ${c.dim}Добавь NPM_TOKEN в .env вручную для update-deps и установки пакетов${c.reset}`, "");
+    log(`  ${c.dim}Добавь NPM_TOKEN в .env вручную для update-enterprise и установки пакетов${c.reset}`, "");
   }
   console.log("");
 }
@@ -150,7 +168,7 @@ function remove(scope) {
   const registries = loadRegistries();
   if (!(scopeResult.value in registries)) {
     exitWithError(
-      `Рейстр для ${scopeResult.value} не найден. Используй 'pnpm add-registry list' для списка.`
+      `Рейстр для ${scopeResult.value} не найден. Используй 'add-enterprise list' для списка.`
     );
   }
   delete registries[scopeResult.value];
@@ -164,7 +182,7 @@ function list() {
   const entries = Object.entries(registries);
   if (entries.length === 0) {
     console.log(
-      "\nНет реестров. Запусти 'pnpm add-registry' для интерактивного добавления или 'pnpm add-registry add @scope <url>'.\n"
+      "\nНет реестров. Запусти 'add-enterprise' для интерактивного добавления.\n"
     );
     return;
   }
@@ -193,7 +211,7 @@ async function main() {
   }
   if (cmd === "remove") {
     if (!scope) {
-      exitWithError("Не указан scope. Использование: add-registry remove <scope>");
+      exitWithError("Не указан scope. Использование: add-enterprise remove <scope>");
     }
     remove(scope);
     return;

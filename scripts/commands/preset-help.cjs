@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Общая справка по CLI preset.
- * Использование: pnpm preset-help
+ * Использование: pnpm help-enterprise
  */
 
 const HELP = `
@@ -9,22 +9,21 @@ const HELP = `
 
   Команды:
     pnpm enterprise      Создание нового проекта (React + Rsbuild)
-    pnpm kill-enterprise Удаление preset
-    pnpm update-deps     Обновление версий в scripts/deps.json
-    pnpm add-registry    Управление приватными npm-реестрами
-    pnpm preset-help     Эта справка
+    pnpm kill-enterprise  Удаление preset
+    pnpm update-enterprise Обновление версий в scripts/deps.json
+    pnpm add-enterprise   Управление приватными npm-реестрами
+    pnpm help-enterprise  Эта справка
 
   Подробная справка по команде (--help / -h):
     pnpm enterprise --help
-    pnpm add-registry --help
-    pnpm update-deps --help
+    pnpm add-enterprise --help
+    pnpm update-enterprise --help
     pnpm kill-enterprise --help
 
   Примеры:
     pnpm enterprise --name=my-app --pm=pnpm --fsd=1
-    pnpm add-registry              # интерактивное добавление реестра и токена
-    pnpm add-registry add @myorg https://npm.pkg.github.com/
-    pnpm add-registry list
+    pnpm add-enterprise              # интерактивное добавление
+    pnpm add-enterprise list
 `;
 
 const [, , arg] = process.argv;

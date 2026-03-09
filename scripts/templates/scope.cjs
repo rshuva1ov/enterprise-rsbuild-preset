@@ -40,12 +40,8 @@ function buildNpmrc() {
     lines.push(`//${host}/:_authToken="\${NPM_TOKEN}"`);
   }
   if (lines.length === 0) {
-    return `# Приватные пакеты требуют настройки реестра.
-# Вариант 1: в preset выполни: pnpm add-registry add @твой-scope https://registry-url/
-# Вариант 2: настрой .env в preset (NPM_SCOPE, NPM_REGISTRY_URL) и пересоздай проект
-# Вариант 3: добавь вручную:
-#   @твой-scope:registry=https://registry-url/
-#   //registry-host/:_authToken="\${NPM_TOKEN}"
+    return `# Приватные пакеты: в preset выполни add-enterprise и пересоздай проект.
+# Без add-enterprise пакеты не попадут в package.json.
 `;
   }
   return lines.join("\n");

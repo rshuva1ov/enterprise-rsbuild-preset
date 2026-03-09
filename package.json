@@ -1,12 +1,13 @@
 {
+  "author": "RShuvalov",
   "name": "enterprise-rsbuild-preset",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "enterprise": "node scripts/commands/create-enterprise.cjs",
     "kill-enterprise": "node scripts/commands/kill-enterprise.cjs",
-    "update-deps": "node scripts/commands/update-deps.cjs",
-    "add-registry": "node scripts/commands/add-registry.cjs",
-    "preset-help": "node scripts/commands/help.cjs"
+    "update-enterprise": "node scripts/commands/update-deps.cjs",
+    "add-enterprise": "node scripts/commands/add-registry.cjs",
+    "help-enterprise": "node scripts/commands/preset-help.cjs"
   }
 }

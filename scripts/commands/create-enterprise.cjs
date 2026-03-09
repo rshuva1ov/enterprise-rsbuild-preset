@@ -452,10 +452,16 @@ async function main() {
 
   if (!args.some((a) => a === "--no-registry")) {
     log(`  ${c.bold}📦 Приватный реестр${c.reset}`, "");
-    log("  Добавить scope, URL и NPM_TOKEN для приватных пакетов?", c.dim);
+    log("  1 = добавить scope, URL и NPM_TOKEN, 2 = пропустить", c.dim);
     logEmpty();
-    const addRegistryAnswer = await ask("  Добавить приватный реестр? (y/n)", "n");
-    if (/^y(es)?$/i.test(addRegistryAnswer.trim())) {
+    const registryValidator = (val) => {
+      const v = (val || "").trim();
+      if (v === "1") return { valid: true, value: true };
+      if (v === "2") return { valid: true, value: false };
+      return { valid: false, error: "Введи 1 или 2" };
+    };
+    const addRegistry = await askWithRetry("  Приватный реестр (1/2)", "2", registryValidator);
+    if (addRegistry) {
       const { addInteractive } = require("./add-registry.cjs");
       await addInteractive();
       logEmpty();
@@ -523,10 +529,10 @@ async function main() {
   if (hasPrivateDeps) {
     if (Object.keys(registries).length === 0) {
       log(`    ${c.yellow}⚠ Приватные пакеты: настрой реестр в preset${c.reset}`, "");
-      log(`    ${c.dim}pnpm add-registry add @scope <url> или .env (NPM_SCOPE, NPM_REGISTRY_URL)${c.reset}`, "");
-      log(`    ${c.dim}Затем пересоздай проект или добавь вручную в .npmrc${c.reset}`, "");
+      log(`    ${c.dim}${PM_CONFIG[pm].run} add-enterprise${c.reset}`, "");
+      log(`    ${c.dim}Затем пересоздай проект${c.reset}`, "");
     } else {
-      log(`    ${c.dim}добавь NPM_TOKEN в .npmrc для приватных пакетов${c.reset}`, "");
+      log(`    ${c.dim}задай NPM_TOKEN в окружении или в .npmrc для приватных пакетов${c.reset}`, "");
     }
   }
   log(`    ${c.cyan}${pmCfg.install}${c.reset}`, "");

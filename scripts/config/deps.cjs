@@ -5,7 +5,7 @@
 const path = require("path");
 const fs = require("fs");
 
-const { PRIVATE_SCOPE, getRegistries } = require("../lib/env.cjs");
+const { getRegistries } = require("../lib/env.cjs");
 
 const DEPS_PATH = path.resolve(__dirname, "..", "deps.json");
 
@@ -13,8 +13,7 @@ function loadDeps() {
   const rawDeps = JSON.parse(fs.readFileSync(DEPS_PATH, "utf-8"));
   const registries = getRegistries();
   const scopes = Object.keys(registries);
-  const scopeForShortNames =
-    PRIVATE_SCOPE || (scopes.length === 1 ? scopes[0] : null);
+  const scopeForShortNames = scopes.length === 1 ? scopes[0] : null;
 
   const privateDeps = rawDeps.privateDependencies || {};
   const depsWithScope = {};

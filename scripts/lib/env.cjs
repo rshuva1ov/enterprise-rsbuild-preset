@@ -30,9 +30,6 @@ function loadEnv() {
 
 loadEnv();
 
-const PRIVATE_SCOPE = process.env.NPM_SCOPE?.trim() || null;
-const NPM_REGISTRY_URL = process.env.NPM_REGISTRY_URL?.trim() || null;
-
 function loadRegistriesFromFile() {
   if (!fs.existsSync(REGISTRIES_PATH)) return {};
   try {
@@ -44,12 +41,7 @@ function loadRegistriesFromFile() {
 }
 
 function getRegistries() {
-  const fromFile = loadRegistriesFromFile();
-  const fromEnv =
-    PRIVATE_SCOPE && NPM_REGISTRY_URL
-      ? { [PRIVATE_SCOPE]: NPM_REGISTRY_URL.replace(/\/$/, "") + "/" }
-      : {};
-  return { ...fromEnv, ...fromFile };
+  return loadRegistriesFromFile();
 }
 
 function getRegistryAuthHost(url) {
@@ -58,8 +50,6 @@ function getRegistryAuthHost(url) {
 }
 
 module.exports = {
-  PRIVATE_SCOPE,
-  NPM_REGISTRY_URL,
   getRegistries,
   getRegistryAuthHost,
 };
