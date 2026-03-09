@@ -1,7 +1,25 @@
 #!/usr/bin/env node
+/**
+ * Генератор проектов на базе Rsbuild.
+ * Использование: pnpm enterprise | node scripts/commands/create-enterprise.cjs [--name=...] [--pm=...] [--preset=...] [--fsd=1|2] [--no-registry] [--help]
+ */
+
+require("../lib/env.cjs");
 const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
+
+const { getRegistries } = require("../lib/env.cjs");
+const { validateProjectName, exitWithError } = require("../lib/cli.cjs");
+
+let constants;
+try {
+  constants = require("../templates/index.cjs");
+} catch (err) {
+  exitWithError(
+    `Не удалось загрузить конфигурацию: ${err.message}. Проверь наличие scripts/deps.json и scripts/registries.json.`
+  );
+}
 
 const {
   PM_CONFIG,
@@ -42,7 +60,7 @@ const {
   TSCONFIG_NODE_FSD,
   getGitignore,
   README_TEMPLATE,
-  NPMRC,
+  getNpmrc,
   PACKAGE_JSON_TEMPLATE,
   ENV_EXAMPLE,
   INDEX_HTML_TEMPLATE,
@@ -51,9 +69,9 @@ const {
   ICON_ALABUGA_SVG,
   ROCKET_SVG_FILE,
   FSD_LAYER_GITIGNORE,
-} = require("./constants.cjs");
+} = constants;
 
-const PRESET_DIR = path.resolve(__dirname, "..");
+const PRESET_DIR = path.resolve(__dirname, "..", "..");
 let ROOT;
 
 const c = {
@@ -130,7 +148,7 @@ async function generateCommonFiles(opts) {
     withFsd ? TSCONFIG_NODE_FSD : TSCONFIG_NODE_JSON
   );
   writeFile(path.join(ROOT, "README.md"), README_TEMPLATE(title, withFsd, pm));
-  writeFile(path.join(ROOT, ".npmrc"), NPMRC);
+  writeFile(path.join(ROOT, ".npmrc"), getNpmrc());
   writeFile(path.join(ROOT, ".env.example"), ENV_EXAMPLE);
   writeFile(path.join(ROOT, "index.html"), INDEX_HTML_TEMPLATE(title));
   ensureDir(path.join(ROOT, "public"));
@@ -309,18 +327,42 @@ function updatePackageJson(withFsd, pm) {
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2), "utf-8");
 }
 
-function toProjectName(str) {
-  return (
-    str
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "")
-      .replace(/^-+|-+$/g, "") || "my-app"
-  );
+const HELP = `
+  Создание проекта на базе Rsbuild
+
+  Использование:
+    pnpm enterprise
+    node scripts/commands/create-enterprise.cjs [опции]
+
+  Опции:
+    --name=<имя>     Имя проекта (папка). Только a-z, 0-9, дефис.
+    --pm=<pm>        Пакетный менеджер: pnpm | yarn | npm
+    --preset=<id>    Пресет (по умолчанию react-ts)
+    --fsd=1|2        Архитектура: 1 (FSD) или 2 (простая)
+    --no-registry    Пропустить вопрос о добавлении приватного реестра
+
+  Примеры:
+    node scripts/commands/create-enterprise.cjs --name=my-app --pm=pnpm --fsd=1
+    node scripts/commands/create-enterprise.cjs --help
+`;
+
+async function askWithRetry(question, defaultValue, validator, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    const answer = await ask(question, defaultValue);
+    const result = validator(answer);
+    if (result.valid) return result.value;
+    log(`  ${c.yellow}⚠ ${result.error}${c.reset}`, "");
+    if (i < maxRetries - 1) log("  Попробуй ещё раз.", c.dim);
+  }
+  exitWithError("Слишком много неверных попыток.");
 }
 
 async function main() {
+  const args = process.argv.slice(2);
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log(HELP);
+    process.exit(0);
+  }
   logEmpty();
   log("  ╭─────────────────────────────────────────╮", c.cyan);
   log("  │     🚀 Enterprise Rsbuild Preset        │", c.cyan);
@@ -340,38 +382,56 @@ async function main() {
     return PM_OPTIONS.includes(v) ? v : null;
   };
 
-  const args = process.argv.slice(2);
   for (const arg of args) {
     if (arg.startsWith("--preset=")) presetId = arg.split("=")[1];
-    if (arg.startsWith("--fsd="))
-      withFsd =
-        arg.split("=")[1].toLowerCase() === "y" ||
-        arg.split("=")[1].toLowerCase() === "yes";
+    if (arg.startsWith("--fsd=")) {
+      const v = (arg.split("=")[1] || "").toLowerCase().trim();
+      if (v === "1" || v === "y" || v === "yes") withFsd = true;
+      else if (v === "2" || v === "n" || v === "no") withFsd = false;
+    }
     if (arg.startsWith("--title="))
       title = arg.split("=").slice(1).join("=").trim();
-    if (arg.startsWith("--name="))
-      projectName = toProjectName(arg.split("=").slice(1).join("="));
+    if (arg.startsWith("--name=")) {
+      const parsed = validateProjectName(arg.split("=").slice(1).join("="));
+      if (parsed.valid) projectName = parsed.value;
+      else exitWithError(parsed.error);
+    }
     if (arg.startsWith("--pm=")) {
       const parsed = parsePm(arg.split("=")[1]);
       if (parsed) pm = parsed;
+      else exitWithError("Неверный PM. Используй: pnpm, yarn или npm");
     }
   }
 
+  const pmValidator = (val) => {
+    const v = (val || "").trim().toLowerCase();
+    const pmMap = { "1": "pnpm", "2": "yarn", "3": "npm" };
+    const resolved = pmMap[v] ?? (["pnpm", "yarn", "npm"].includes(v) ? v : null);
+    return resolved ? { valid: true, value: resolved } : { valid: false, error: "Введи 1 (pnpm), 2 (yarn) или 3 (npm)" };
+  };
+  const fsdValidator = (val) => {
+    const v = (val || "").trim();
+    if (v === "1") return { valid: true, value: true };
+    if (v === "2") return { valid: true, value: false };
+    return { valid: false, error: "Введи 1 (FSD) или 2 (простая структура)" };
+  };
+
   if (!args.some((a) => a.startsWith("--name="))) {
     log(`  ${c.bold}📁 Имя проекта${c.reset}`, "");
-    log("  Папка создастся рядом с preset", c.dim);
+    log("  Папка создастся рядом с preset. Только a-z, 0-9, дефис.", c.dim);
     logEmpty();
-    const nameAnswer = await ask("  Имя проекта", "my-app");
-    projectName = toProjectName(nameAnswer);
+    projectName = await askWithRetry(
+      "  Имя проекта",
+      "my-app",
+      (a) => validateProjectName(a || "my-app")
+    );
     logEmpty();
   }
   if (!args.some((a) => a.startsWith("--pm="))) {
     log(`  ${c.bold}📦 Пакетный менеджер${c.reset}`, "");
     log("  1 = pnpm, 2 = yarn, 3 = npm", c.dim);
     logEmpty();
-    const pmAnswer = await ask("  Пакетный менеджер (1/2/3)", "1");
-    const pmMap = { "1": "pnpm", "2": "yarn", "3": "npm" };
-    pm = pmMap[pmAnswer.trim()] ?? pm;
+    pm = await askWithRetry("  Пакетный менеджер (1/2/3)", "1", pmValidator);
     logEmpty();
   }
   if (!args.some((a) => a.startsWith("--preset="))) {
@@ -379,28 +439,50 @@ async function main() {
     log("  1 = React + TypeScript", c.dim);
     logEmpty();
     const presetAnswer = await ask("  Выбери пресет", "1");
-    presetId = presetAnswer === "1" ? "react-ts" : presetId;
+    presetId = presetAnswer === "1" || !presetAnswer ? "react-ts" : presetId;
     logEmpty();
   }
   if (!args.some((a) => a.startsWith("--fsd="))) {
     log(`  ${c.bold}📐 Архитектура${c.reset}`, "");
-    log("  FSD (Feature-Sliced Design) — да/нет", c.dim);
+    log("  1 = FSD (Feature-Sliced Design), 2 = простая структура", c.dim);
     logEmpty();
-    const fsdAnswer = await ask("  FSD структура", "y");
-    withFsd = /^y(es)?$/i.test(fsdAnswer);
+    withFsd = await askWithRetry("  Архитектура (1/2)", "1", fsdValidator);
     logEmpty();
   }
 
+  if (!args.some((a) => a === "--no-registry")) {
+    log(`  ${c.bold}📦 Приватный реестр${c.reset}`, "");
+    log("  Добавить scope, URL и NPM_TOKEN для приватных пакетов?", c.dim);
+    logEmpty();
+    const addRegistryAnswer = await ask("  Добавить приватный реестр? (y/n)", "n");
+    if (/^y(es)?$/i.test(addRegistryAnswer.trim())) {
+      const { addInteractive } = require("./add-registry.cjs");
+      await addInteractive();
+      logEmpty();
+    }
+  }
+
   ROOT = path.resolve(PRESET_DIR, "..", projectName);
-  if (fs.existsSync(ROOT) && fs.readdirSync(ROOT).length > 0) {
-    logEmpty();
-    log("  ❌  Ошибка", c.red);
-    log(
-      `  Папка "${projectName}" уже существует и не пуста. Выбери другое имя.`,
-      c.dim
+  if (fs.existsSync(ROOT)) {
+    const isEmpty = fs.readdirSync(ROOT).length === 0;
+    if (!isEmpty) {
+      logEmpty();
+      log("  ❌  Ошибка", c.red);
+      log(
+        `  Папка "${projectName}" уже существует и не пуста. Выбери другое имя.`,
+        c.dim
+      );
+      logEmpty();
+      process.exit(1);
+    }
+    const overwrite = await ask(
+      `  Папка "${projectName}" пуста. Перезаписать? (y/n)`,
+      "y"
     );
-    logEmpty();
-    process.exit(1);
+    if (!/^y(es)?$/i.test(overwrite.trim())) {
+      log("Отменено.", c.dim);
+      process.exit(0);
+    }
   }
 
   log(`  ${c.bold}⚙️  Создание проекта...${c.reset}`, "");
@@ -427,7 +509,26 @@ async function main() {
   logEmpty();
   const pmCfg = PM_CONFIG[pm];
   log(`    ${c.cyan}cd ../${projectName}${c.reset}`, "");
-  log(`    ${c.dim}добавь NPM_TOKEN в .npmrc${c.reset}`, "");
+  const registries = getRegistries();
+  const depsPath = path.resolve(__dirname, "..", "deps.json");
+  let hasPrivateDeps = false;
+  if (fs.existsSync(depsPath)) {
+    try {
+      const deps = JSON.parse(fs.readFileSync(depsPath, "utf-8"));
+      hasPrivateDeps = Object.keys(deps.privateDependencies || {}).length > 0;
+    } catch {
+      /* ignore */
+    }
+  }
+  if (hasPrivateDeps) {
+    if (Object.keys(registries).length === 0) {
+      log(`    ${c.yellow}⚠ Приватные пакеты: настрой реестр в preset${c.reset}`, "");
+      log(`    ${c.dim}pnpm add-registry add @scope <url> или .env (NPM_SCOPE, NPM_REGISTRY_URL)${c.reset}`, "");
+      log(`    ${c.dim}Затем пересоздай проект или добавь вручную в .npmrc${c.reset}`, "");
+    } else {
+      log(`    ${c.dim}добавь NPM_TOKEN в .npmrc для приватных пакетов${c.reset}`, "");
+    }
+  }
   log(`    ${c.cyan}${pmCfg.install}${c.reset}`, "");
   log(`    ${c.cyan}${pmCfg.run} dev${c.reset}`, "");
   logEmpty();
@@ -435,7 +536,5 @@ async function main() {
 
 main().catch((err) => {
   logEmpty();
-  log("  ❌  Ошибка", c.red);
-  console.error(err);
-  process.exit(1);
+  exitWithError(err.message || String(err));
 });
