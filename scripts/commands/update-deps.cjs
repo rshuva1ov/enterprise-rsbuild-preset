@@ -8,6 +8,8 @@
 const fs = require("fs");
 const path = require("path");
 const https = require("https");
+const { spawnSync } = require("child_process");
+const os = require("os");
 
 const { getRegistries } = require("../lib/env.cjs");
 const { exitWithError } = require("../lib/cli.cjs");
@@ -20,7 +22,8 @@ const HELP = `
   Использование:
     pnpm update-enterprise
 
-  Подтягивает последние версии из npm registry. Для приватных пакетов нужен NPM_TOKEN (добавляется через add-enterprise).
+  Подтягивает последние версии из npm registry, проверяет через pnpm audit (High/Critical).
+  В deps.json попадают только версии, прошедшие audit. Для приватных пакетов нужен NPM_TOKEN.
 `;
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -117,6 +120,69 @@ function getAllPackages(deps) {
   return [...fromDeps, ...expanded];
 }
 
+function runAuditVerification(deps) {
+  const tempDir = path.join(os.tmpdir(), `enterprise-audit-${Date.now()}`);
+  fs.mkdirSync(tempDir, { recursive: true });
+
+  const pkg = {
+    name: "audit-check",
+    version: "1.0.0",
+    private: true,
+    dependencies: deps.dependencies || {},
+    devDependencies: deps.devDependencies || {},
+  };
+  fs.writeFileSync(
+    path.join(tempDir, "package.json"),
+    JSON.stringify(pkg, null, 2),
+    "utf-8"
+  );
+
+  const { buildNpmrc } = require("../templates/scope.cjs");
+  const npmrc = buildNpmrc();
+  if (npmrc && !npmrc.startsWith("#")) {
+    fs.writeFileSync(path.join(tempDir, ".npmrc"), npmrc, "utf-8");
+  }
+
+  const env = { ...process.env };
+  const installResult = spawnSync("pnpm", ["install", "--no-frozen-lockfile"], {
+    cwd: tempDir,
+    env,
+    stdio: "pipe",
+    shell: true,
+  });
+
+  if (installResult.status !== 0) {
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, error: "pnpm install не удался", output: installResult.stderr?.toString() || installResult.stdout?.toString() };
+  }
+
+  const auditResult = spawnSync("pnpm", ["audit", "--audit-level=high"], {
+    cwd: tempDir,
+    env,
+    stdio: "pipe",
+    shell: true,
+  });
+
+  try {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
+
+  if (auditResult.status !== 0) {
+    return {
+      ok: false,
+      error: "Обнаружены уязвимости (High/Critical)",
+      output: auditResult.stdout?.toString() || auditResult.stderr?.toString() || "",
+    };
+  }
+  return { ok: true };
+}
+
 async function main() {
   const deps = loadDeps();
   const packages = getAllPackages(deps);
@@ -144,28 +210,46 @@ async function main() {
 
     const version = await getLatestVersion(name, registry);
     if (version) {
+      let oldVersion = "";
       if (deps.dependencies?.[name]) {
+        oldVersion = deps.dependencies[name];
         deps.dependencies[name] = version;
         updated++;
       } else if (deps.devDependencies?.[name]) {
+        oldVersion = deps.devDependencies[name];
         deps.devDependencies[name] = version;
         updated++;
       } else if (deps.privateDependencies?.[name]) {
+        oldVersion = deps.privateDependencies[name];
         deps.privateDependencies[name] = version;
         updated++;
       } else if (
         scope &&
         deps.privateDependencies?.[name.replace(`${scope}/`, "")]
       ) {
+        oldVersion = deps.privateDependencies[name.replace(`${scope}/`, "")];
         deps.privateDependencies[name.replace(`${scope}/`, "")] = version;
         updated++;
       }
-      process.stdout.write(`  ✓ ${name} → ${version}\n`);
+      const fromTo = oldVersion ? ` ${oldVersion} → ${version}` : ` ${version}`;
+      process.stdout.write(`  ✓ ${name}${fromTo}\n`);
     } else {
       failed.push(name);
       process.stdout.write(`  ✗ ${name} (не удалось получить версию)\n`);
     }
   }
+
+  console.log(`\nПроверка audit (High/Critical)...`);
+  const auditResult = runAuditVerification(deps);
+  if (!auditResult.ok) {
+    console.log(`\n❌ Audit не пройден: ${auditResult.error}`);
+    if (auditResult.output) {
+      console.log(auditResult.output.trim().slice(0, 500));
+    }
+    console.log(`\nОбновления не применены. Исправь уязвимости и повтори.`);
+    process.exit(1);
+  }
+  console.log(`  ✓ Audit пройден`);
 
   fs.writeFileSync(DEPS_PATH, JSON.stringify(deps, null, 2) + "\n", "utf-8");
 
