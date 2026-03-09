@@ -34,5 +34,7 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1"
   },
-  "privateDependencies": {}
+  "privateDependencies": {
+    "@games-alabuga/ui-kit": "^1.1.3"
+  }
 }
