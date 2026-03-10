@@ -107,7 +107,6 @@ const PACKAGE_JSON_TEMPLATE = (name, pm) => {
       scripts: {
         dev: `${cfg.exec} rsbuild dev`,
         build: `${cfg.exec} rsbuild build`,
-        "create-enterprise": `${cfg.exec} rsbuild build`,
         audit: cfg.audit,
         fsd: "steiger check",
         "fsd:fix": "steiger check --fix",
