@@ -1,27 +1,32 @@
 /**
  * Функции для генерации scope-зависимых шаблонов (aliases, paths, npmrc).
  * Вызывают getRegistries() при каждом вызове, чтобы учитывать изменения registries.json.
+ * Scope фильтруются по SCOPE_SAFE_REGEX для защиты от инъекций при ручном редактировании.
  */
 const { getRegistries, getRegistryAuthHost } = require("../lib/env.cjs");
+const { SCOPE_SAFE_REGEX } = require("../lib/cli.cjs");
+
+function getSafeScopes() {
+  const registries = getRegistries();
+  return Object.keys(registries).filter((s) => SCOPE_SAFE_REGEX.test(s));
+}
 
 function buildScopeAliases() {
-  const registries = getRegistries();
-  const scopes = Object.keys(registries);
+  const scopes = getSafeScopes();
   return scopes
     .map((s) => `"${s}": path.resolve(__dirname, "node_modules/${s}")`)
     .join(",\n      ");
 }
 
 function buildScopePaths() {
-  const registries = getRegistries();
-  const scopes = Object.keys(registries);
+  const scopes = getSafeScopes();
   return scopes
     .map((s) => `"${s}/*": ["./node_modules/${s}/*"]`)
     .join(",\n      ");
 }
 
 function buildScopeImportOrder() {
-  const scopes = Object.keys(getRegistries());
+  const scopes = getSafeScopes();
   if (scopes.length === 0) return "";
   return ",\n    " + scopes.map((s) => `"^${s}/(.*)$"`).join(",\n    ");
 }
@@ -30,6 +35,7 @@ function buildNpmrc() {
   const registries = getRegistries();
   const lines = [];
   for (const [scope, url] of Object.entries(registries)) {
+    if (!SCOPE_SAFE_REGEX.test(scope)) continue;
     lines.push(`${scope}:registry=${url}`);
   }
   const seenHosts = new Set();

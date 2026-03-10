@@ -8,7 +8,15 @@ const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
 
-const { validateScope, validateUrl, exitWithError, c, log } = require("../lib/cli.cjs");
+const {
+  validateScope,
+  validateUrl,
+  validatePackageName,
+  validateVersion,
+  exitWithError,
+  c,
+  log,
+} = require("../lib/cli.cjs");
 
 const REGISTRIES_PATH = path.resolve(__dirname, "..", "registries.json");
 const DEPS_PATH = path.resolve(__dirname, "..", "deps.json");
@@ -92,18 +100,23 @@ function addPackageToDeps(packageName, version) {
   fs.writeFileSync(DEPS_PATH, JSON.stringify(deps, null, 2) + "\n", "utf-8");
 }
 
+function sanitizeToken(token) {
+  return (token || "").replace(/[\r\n]/g, "").trim();
+}
+
 function upsertEnvToken(token) {
-  if (!token) return;
+  const safe = sanitizeToken(token);
+  if (!safe) return;
   let content = "";
   if (fs.existsSync(ENV_PATH)) {
     content = fs.readFileSync(ENV_PATH, "utf-8");
     if (/^NPM_TOKEN=/m.test(content)) {
-      content = content.replace(/^NPM_TOKEN=.*$/m, `NPM_TOKEN=${token}`);
+      content = content.replace(/^NPM_TOKEN=.*$/m, `NPM_TOKEN=${safe}`);
     } else {
-      content = content.trimEnd() + (content.endsWith("\n") ? "" : "\n") + `NPM_TOKEN=${token}\n`;
+      content = content.trimEnd() + (content.endsWith("\n") ? "" : "\n") + `NPM_TOKEN=${safe}\n`;
     }
   } else {
-    content = `NPM_TOKEN=${token}\n`;
+    content = `NPM_TOKEN=${safe}\n`;
   }
   fs.writeFileSync(ENV_PATH, content, "utf-8");
   log(`  NPM_TOKEN добавлен в .env`, c.green);
@@ -147,11 +160,19 @@ async function addInteractive() {
   );
   if (pkgName.trim()) {
     const fullName = pkgName.startsWith("@") ? pkgName.trim() : `${scopeResult.value}/${pkgName.trim()}`;
-    const version = await ask(`  Версия для ${fullName}`, "^1.0.0");
-    addPackageToDeps(fullName, version.trim() || "^1.0.0");
-    log(`  Добавлен в deps.json: ${fullName}`, c.green);
+    const pkgResult = validatePackageName(fullName);
+    if (!pkgResult.valid) {
+      log(`  ${c.yellow}⚠ ${pkgResult.error}: пакет не добавлен в deps.json${c.reset}`, "");
+    } else {
+      const version = await ask(`  Версия для ${pkgResult.value}`, "^1.0.0");
+      const verResult = validateVersion(version.trim() || "^1.0.0");
+      const ver = verResult.valid ? verResult.value : "^1.0.0";
+      addPackageToDeps(pkgResult.value, ver);
+      log(`  Добавлен в deps.json: ${pkgResult.value}@${ver}`, c.green);
+    }
   }
 
+  log(`  ${c.dim}⚠ NPM_TOKEN попадёт в историю терминала. Лучше задать через: export NPM_TOKEN=xxx${c.reset}`, "");
   const token = await ask("  NPM_TOKEN (опционально, для .env — Enter чтобы пропустить)", "");
   if (token) {
     upsertEnvToken(token);
@@ -187,8 +208,13 @@ function list() {
     return;
   }
   console.log("\nПриватные npm-реестры:\n");
+  let hasHttp = false;
   for (const [scope, url] of entries) {
+    if (url.startsWith("http://")) hasHttp = true;
     console.log(`  ${scope} → ${url}`);
+  }
+  if (hasHttp) {
+    log("\n⚠ Реестры с HTTP небезопасны — токены передаются открытым текстом. Используй HTTPS.", c.yellow);
   }
   console.log("");
 }

@@ -8,6 +8,7 @@
     "kill-enterprise": "node scripts/commands/kill-enterprise.cjs",
     "update-enterprise": "node scripts/commands/update-deps.cjs",
     "add-enterprise": "node scripts/commands/add-registry.cjs",
-    "help-enterprise": "node scripts/commands/preset-help.cjs"
+    "help-enterprise": "node scripts/commands/preset-help.cjs",
+    "test:scenarios": "node tests/test-scenarios.cjs"
   }
 }

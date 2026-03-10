@@ -148,7 +148,6 @@ function runAuditVerification(deps) {
     cwd: tempDir,
     env,
     stdio: "pipe",
-    shell: true,
   });
 
   if (installResult.status !== 0) {
@@ -164,7 +163,6 @@ function runAuditVerification(deps) {
     cwd: tempDir,
     env,
     stdio: "pipe",
-    shell: true,
   });
 
   try {
@@ -193,7 +191,6 @@ async function main() {
       "\n⚠ Для приватных пакетов нужен NPM_TOKEN. Добавь в .env или задай в окружении.\n"
     );
   }
-  const registries = getRegistries();
   const total = packages.length;
   let updated = 0;
   const failed = [];

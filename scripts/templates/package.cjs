@@ -2,6 +2,12 @@
  * Шаблоны package.json, .gitignore, README, .npmrc, .env.example, index.html, husky.
  */
 const { PM_CONFIG } = require("../config/pm.cjs");
+
+function escapeHtml(str) {
+  if (typeof str !== "string") return "";
+  const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  return str.replace(/[&<>"']/g, (c) => map[c]);
+}
 const { loadDeps } = require("../config/deps.cjs");
 const { buildNpmrc } = require("./scope.cjs");
 
@@ -50,7 +56,7 @@ const README_TEMPLATE = (title, withFsd, pm) => {
 | \`${pmName} fsd:fix\` | Автоисправление FSD |
 `
     : "";
-  return `# ${title}
+  return `# ${escapeHtml(title)}
 
 React + TypeScript приложение на базе **Rsbuild** с Keycloak и приватными npm-реестрами.
 
@@ -145,7 +151,7 @@ const INDEX_HTML_TEMPLATE = (title) => `<!doctype html>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/Icon-alabuga-color.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${title}</title>
+    <title>${escapeHtml(title)}</title>
   </head>
   <body style="margin: 0; padding: 0;">
     <div id="root"></div>

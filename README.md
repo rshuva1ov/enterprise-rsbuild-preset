@@ -6,12 +6,10 @@
 
 1. **Скопируй** папку `enterprise-rsbuild-preset` на уровне с местом где хочешь создать проект.
 
-2. **Запусти генерацию**:
+2. **Запусти генерацию** (используй run своего пакетного менеджера):
 
    ```bash
-   pnpm enterprise
-   # или: npm run enterprise
-   # или: yarn enterprise
+   run enterprise
    ```
 
    Или напрямую:
@@ -23,15 +21,15 @@
    **Неинтерактивный режим** (все параметры через аргументы):
 
    ```bash
-   node scripts/commands/create-enterprise.cjs --name=my-app --pm=pnpm --preset=react-ts --fsd=1 --no-registry
+   node scripts/commands/create-enterprise.cjs --name=my-app --preset=react-ts --fsd=1 --no-registry
    ```
 
-   `--pm=` — `pnpm`, `yarn` или `npm`. `--no-registry` — пропустить вопрос о приватном реестре.
+   `--pm=` — пакетный менеджер. `--no-registry` — пропустить вопрос о приватном реестре.
 
 3. **Скрипт спросит**:
 
    - **Имя проекта** — папка создастся рядом с preset (например, `my-app`)
-   - **Пакетный менеджер** — pnpm (1), yarn (2) или npm (3)
+   - **Пакетный менеджер** — 1, 2 или 3
    - **Пресет** — React + TypeScript
    - **Архитектура** — 1 (FSD) или 2 (простая структура)
    - **Приватный реестр** — 1 = добавить scope, URL и NPM_TOKEN, 2 = пропустить
@@ -41,10 +39,8 @@
    ```bash
    cd ../my-app
    # задай NPM_TOKEN в окружении или в .npmrc
-   pnpm install
-   # или: yarn install / npm install
-   pnpm dev
-   # или: yarn dev / npm run dev
+   run install
+   run dev
    ```
 
 ## Что генерируется
@@ -57,7 +53,7 @@
 - **Compression** — gzip и brotli для production
 - **Image compress** — сжатие jpeg, png, webp, avif, svg
 - **Keycloak** — аутентификация (в `src/index.tsx` вызов `keycloakAuth` закомментирован — приложение запускается без авторизации; раскомментируй и закомментируй `startApp()` для включения)
-- **Приватный npm** — реестры через `add-enterprise`. Добавь `NPM_TOKEN` в окружение или в `.npmrc` созданного проекта.
+- **Приватный реестр** — через `add-enterprise`. Добавь `NPM_TOKEN` в окружение или в `.npmrc` созданного проекта.
 
 ### Зависимости
 
@@ -83,16 +79,14 @@
 
 ### Безопасность
 
-- **npm audit** — проверка уязвимостей в зависимостях (High/Critical) на pre-push
+- **audit** — проверка уязвимостей в зависимостях (High/Critical) на pre-push
 
 ## Обновление версий зависимостей
 
-Скрипт `update-enterprise` подтягивает последние версии всех библиотек из npm registry и обновляет `scripts/deps.json`.
+Скрипт `update-enterprise` подтягивает последние версии всех библиотек из registry и обновляет `scripts/deps.json`.
 
 ```bash
-pnpm update-enterprise
-# или: npm run update-enterprise
-# или: yarn update-enterprise
+run update-enterprise
 ```
 
 ### Приватные реестры (CLI)
@@ -100,9 +94,9 @@ pnpm update-enterprise
 Рейстры задаются через `add-enterprise` и сохраняются в `scripts/registries.json`:
 
 ```bash
-pnpm add-enterprise              # интерактивное добавление
-pnpm add-enterprise list         # список реестров
-pnpm add-enterprise remove @scope
+run add-enterprise              # интерактивное добавление
+run add-enterprise list         # список реестров
+run add-enterprise remove @scope
 ```
 
 При интерактивном добавлении можно указать `NPM_TOKEN` — он добавится в `.env` для `update-enterprise`.
@@ -112,12 +106,22 @@ pnpm add-enterprise remove @scope
 - **Short-name** (без `@`): `"имя-пакета": "^1.1.6"` — любой приватный пакет; scope берётся из одного scope в `registries.json`. При нескольких реестрах — используй full-name.
 - **Full-name** (с `@`): `"@myorg/components": "^2.0.0"` — scope должен быть в `registries.json`
 
+## Локальные файлы (не коммитить)
+
+В `.gitignore` preset:
+
+- **`.env`** — NPM_TOKEN для приватных реестров (добавляется через `add-enterprise`)
+- **`scripts/registries.json`** — scope → URL приватных реестров (создаётся через `add-enterprise`)
+
+Скопируй `scripts/registries.example.json` в `scripts/registries.json` и настрой реестры, либо используй `add-enterprise` для интерактивного добавления.
+
 ## Структура preset
 
 ```
 enterprise-rsbuild-preset/
-├── .env.example         # NPM_TOKEN (добавляется через add-enterprise)
-├── package.json         # скрипты enterprise, kill-enterprise, update-enterprise, add-enterprise, help-enterprise
+├── .env.example         # шаблон для NPM_TOKEN
+├── .gitignore           # .env, scripts/registries.json, node_modules
+├── package.json         # скрипты enterprise, kill-enterprise, update-enterprise, add-enterprise, help-enterprise, test:scenarios
 ├── README.md
 └── scripts/
     ├── lib/              # утилиты
@@ -133,8 +137,11 @@ enterprise-rsbuild-preset/
     │   ├── update-deps.cjs    # update-enterprise
     │   └── preset-help.cjs    # help-enterprise
     ├── templates/        # шаблоны для генерации
-    ├── deps.json         # версии зависимостей (update-enterprise)
-    └── registries.json   # scope → registry URL (add-enterprise)
+    ├── deps.json             # версии зависимостей (update-enterprise)
+    ├── registries.json       # scope → registry URL (add-enterprise, в .gitignore)
+    └── registries.example.json
+├── tests/
+│   └── test-scenarios.cjs    # скрипт test:scenarios
 ```
 
 ## Удаление preset
@@ -142,28 +149,34 @@ enterprise-rsbuild-preset/
 Когда preset больше не нужен:
 
 ```bash
-pnpm kill-enterprise
-# или: npm run kill-enterprise / yarn kill-enterprise
+run kill-enterprise
 ```
 
 Скрипт запросит подтверждение и удалит папку preset.
+
+## Проверка сценариев
+
+```bash
+run test:scenarios
+```
+
+Проверяет работу при отсутствии `.env`, битом `registries.json`, некорректных `privateDependencies` и других сценариях.
 
 ## Справка по CLI
 
 Общая справка по всем командам:
 
 ```bash
-pnpm help-enterprise
-# или: npm run help-enterprise / yarn help-enterprise
+run help-enterprise
 ```
 
 Подробная справка по отдельной команде (`--help` / `-h`):
 
 ```bash
-pnpm enterprise --help
-pnpm add-enterprise --help
-pnpm update-enterprise --help
-pnpm kill-enterprise --help
+run enterprise --help
+run add-enterprise --help
+run update-enterprise --help
+run kill-enterprise --help
 ```
 
 ## Возможные ошибки
@@ -172,7 +185,7 @@ pnpm kill-enterprise --help
 | ----------------------------------------------- | -------------------------------------------------------------- |
 | `Unsupported engine` / `EBADENGINE` при install | Обнови Node.js до 20.19+                                       |
 | Папка проекта уже существует и не пуста         | Выбери другое имя или удали/переименуй папку                   |
-| `deps.json не найден`                           | Запускай скрипты из корня preset (`pnpm update-enterprise`)   |
+| `deps.json не найден`                           | Запускай скрипты из корня preset (`run update-enterprise`)   |
 | `Не удалось загрузить конфигурацию`             | Проверь наличие `scripts/deps.json`, `scripts/registries.json` |
 | Приватные пакеты не обновляются в update-enterprise | Добавь `NPM_TOKEN` через `add-enterprise` (при добавлении реестра) |
 | `Рейстр для @scope не найден`                   | Запусти `add-enterprise` для добавления реестра                |
@@ -182,7 +195,7 @@ pnpm kill-enterprise --help
 
 ## Результат
 
-После `pnpm enterprise` (или `npm run enterprise` / `yarn enterprise`) рядом появится папка с проектом. Все скрипты в `package.json`, Husky-хуки и README созданного проекта будут использовать выбранный пакетный менеджер (pnpm, yarn или npm):
+После `run enterprise` рядом появится папка с проектом. Все скрипты в `package.json`, Husky-хуки и README созданного проекта будут использовать выбранный пакетный менеджер:
 
 ```
 parent/
@@ -192,7 +205,7 @@ parent/
     ├── index.html
     ├── rsbuild.config.ts
     ├── tsconfig.json, tsconfig.app.json, tsconfig.node.json
-    ├── .npmrc               # добавь NPM_TOKEN (при приватных пакетах)
+    ├── .npmrc               # NPM_TOKEN (при приватных пакетах)
     ├── .env.example
     ├── eslint.config.mjs
     ├── stylelint.config.mjs
